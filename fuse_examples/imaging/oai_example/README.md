@@ -142,6 +142,8 @@ The workflow uses the official MCP Python SDK and serves tool-based inference ov
 
 ### Required Packages
 
+Python 3.10 or newer is required for this MCP workflow because `mcp[cli]` does not support Python 3.9.
+
 From the repository root, install the project and example dependencies with:
 
 ```bash

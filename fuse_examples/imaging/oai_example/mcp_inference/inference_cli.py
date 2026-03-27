@@ -1,4 +1,6 @@
-# ruff: noqa: UP045
+# mypy: python_version=3.10
+from __future__ import annotations
+
 import argparse
 import ast
 import asyncio
@@ -16,7 +18,7 @@ import tempfile
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import nibabel as nib
@@ -304,7 +306,7 @@ def _infer_head_output_dims(
     )
 
 
-def _resolve_path(path: Optional[str], base_dir: str) -> Optional[str]:
+def _resolve_path(path: str | None, base_dir: str) -> str | None:
     if path is None:
         return None
     path = os.path.expanduser(path)
@@ -340,7 +342,7 @@ def _parse_bool(text: str, default: bool) -> bool:
     raise ValueError(f"Expected yes/no style input, got: {text}")
 
 
-def _prompt(prompt_text: str, default: Optional[str] = None) -> str:
+def _prompt(prompt_text: str, default: str | None = None) -> str:
     suffix = f" [{default}]" if default not in (None, "") else ""
     value = input(f"{prompt_text}{suffix}: ").strip()
     if value == "" and default is not None:
@@ -445,7 +447,7 @@ class PreprocessingTool:
     def __init__(self, resize_to: Sequence[int]):
         self.resize_to = tuple(int(value) for value in resize_to)
 
-    def prepare(self, input_path: str, case_id: Optional[str] = None) -> PreparedCase:
+    def prepare(self, input_path: str, case_id: str | None = None) -> PreparedCase:
         from scipy.ndimage import zoom
 
         resolved_path = os.path.expanduser(input_path)
@@ -521,7 +523,7 @@ class ClassificationTool:
         checkpoint_path: str,
         model_name: str,
         cls_targets: Sequence[str],
-        class_labels: Optional[Dict[str, Sequence[Any]]],
+        class_labels: Dict[str, Sequence[Any]] | None,
         device: str,
     ) -> None:
         from fuse.dl.models import ModelMultiHead
@@ -767,10 +769,10 @@ class InteractiveInferenceWorkflow:
         )
         self.visualization_tool = VisualizationTool()
         self.logger_tool = ResultLoggerTool()
-        self._classification_tool: Optional[ClassificationTool] = None
-        self._segmentation_tool: Optional[SegmentationTool] = None
-        self._classification_cache_key: Optional[Tuple[str, str, str]] = None
-        self._segmentation_cache_key: Optional[Tuple[str, str, str]] = None
+        self._classification_tool: ClassificationTool | None = None
+        self._segmentation_tool: SegmentationTool | None = None
+        self._classification_cache_key: Tuple[str, str, str] | None = None
+        self._segmentation_cache_key: Tuple[str, str, str] | None = None
 
     def get_settings_dict(self) -> Dict[str, Any]:
         return asdict(self.settings)
@@ -784,15 +786,15 @@ class InteractiveInferenceWorkflow:
     def update_settings(
         self,
         *,
-        input_mode: Optional[str] = None,
-        task: Optional[str] = None,
-        input_format: Optional[str] = None,
-        classification_weights_path: Optional[str] = None,
-        segmentation_weights_path: Optional[str] = None,
-        qc_visualization: Optional[bool] = None,
-        csv_logging: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        device: Optional[str] = None,
+        input_mode: str | None = None,
+        task: str | None = None,
+        input_format: str | None = None,
+        classification_weights_path: str | None = None,
+        segmentation_weights_path: str | None = None,
+        qc_visualization: bool | None = None,
+        csv_logging: bool | None = None,
+        output_dir: str | None = None,
+        device: str | None = None,
     ) -> Dict[str, Any]:
         if input_mode is not None:
             normalized_input_mode = input_mode.lower()
@@ -1033,7 +1035,7 @@ class InteractiveInferenceWorkflow:
         task: str,
         qc_visualization: bool,
         log_to_csv: bool,
-        case_directory_name: Optional[str] = None,
+        case_directory_name: str | None = None,
     ) -> Dict[str, Any]:
         case_id = _input_case_id(input_path)
         output_case_dir_name = case_directory_name or _case_directory_name(1)
@@ -1120,10 +1122,10 @@ class InteractiveInferenceWorkflow:
     def run_single_case(
         self,
         input_path: str,
-        task: Optional[str] = None,
-        qc_visualization: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        log_to_csv: Optional[bool] = None,
+        task: str | None = None,
+        qc_visualization: bool | None = None,
+        output_dir: str | None = None,
+        log_to_csv: bool | None = None,
     ) -> Dict[str, Any]:
         selected_task = task or self.settings.task
         if selected_task not in {"segmentation", "classification", "all"}:
@@ -1161,10 +1163,10 @@ class InteractiveInferenceWorkflow:
     def run_batch(
         self,
         batch_path: str,
-        task: Optional[str] = None,
-        qc_visualization: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        log_to_csv: Optional[bool] = None,
+        task: str | None = None,
+        qc_visualization: bool | None = None,
+        output_dir: str | None = None,
+        log_to_csv: bool | None = None,
     ) -> Dict[str, Any]:
         selected_task = task or self.settings.task
         if selected_task not in {"segmentation", "classification", "all"}:
@@ -1360,7 +1362,7 @@ class MCPInteractiveCLI:
             raise RuntimeError("MCP server returned invalid settings payload.")
         return payload
 
-    async def view_settings(self, settings: Optional[Dict[str, Any]] = None) -> None:
+    async def view_settings(self, settings: Dict[str, Any] | None = None) -> None:
         self._print_settings(settings or await self._get_settings(), compact=False)
 
     async def reset_defaults(self) -> None:
@@ -1471,15 +1473,15 @@ def build_mcp_server(
 
     @mcp.tool()
     def update_inference_settings(
-        input_mode: Optional[str] = None,
-        task: Optional[str] = None,
-        input_format: Optional[str] = None,
-        classification_weights_path: Optional[str] = None,
-        segmentation_weights_path: Optional[str] = None,
-        qc_visualization: Optional[bool] = None,
-        csv_logging: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        device: Optional[str] = None,
+        input_mode: str | None = None,
+        task: str | None = None,
+        input_format: str | None = None,
+        classification_weights_path: str | None = None,
+        segmentation_weights_path: str | None = None,
+        qc_visualization: bool | None = None,
+        csv_logging: bool | None = None,
+        output_dir: str | None = None,
+        device: str | None = None,
     ) -> Dict[str, Any]:
         """Update the inference defaults used by subsequent MCP tool calls."""
         return workflow.update_settings(
@@ -1503,9 +1505,9 @@ def build_mcp_server(
     def _process_case_impl(
         path: str,
         task: str = "all",
-        qc_visualization: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        log_to_csv: Optional[bool] = None,
+        qc_visualization: bool | None = None,
+        output_dir: str | None = None,
+        log_to_csv: bool | None = None,
     ) -> Dict[str, Any]:
         """Run preprocessing and selected downstream inference tasks for one case."""
         return _run_via_mcp_tool(
@@ -1522,9 +1524,9 @@ def build_mcp_server(
     def process_case(
         path: str,
         task: str = "all",
-        qc_visualization: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        log_to_csv: Optional[bool] = None,
+        qc_visualization: bool | None = None,
+        output_dir: str | None = None,
+        log_to_csv: bool | None = None,
     ) -> Dict[str, Any]:
         """Run preprocessing and selected downstream inference tasks for one case."""
         return _process_case_impl(
@@ -1539,9 +1541,9 @@ def build_mcp_server(
     def process_oai_case(
         path: str,
         task: str = "all",
-        qc_visualization: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        log_to_csv: Optional[bool] = None,
+        qc_visualization: bool | None = None,
+        output_dir: str | None = None,
+        log_to_csv: bool | None = None,
     ) -> Dict[str, Any]:
         """Backward-compatible alias for process_case."""
         return _process_case_impl(
@@ -1555,9 +1557,9 @@ def build_mcp_server(
     def _process_batch_impl(
         batch_path: str,
         task: str = "all",
-        qc_visualization: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        log_to_csv: Optional[bool] = None,
+        qc_visualization: bool | None = None,
+        output_dir: str | None = None,
+        log_to_csv: bool | None = None,
     ) -> Dict[str, Any]:
         """Run batch inference from a folder or manifest and continue on per-case failures."""
         return _run_via_mcp_tool(
@@ -1574,9 +1576,9 @@ def build_mcp_server(
     def process_batch(
         batch_path: str,
         task: str = "all",
-        qc_visualization: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        log_to_csv: Optional[bool] = None,
+        qc_visualization: bool | None = None,
+        output_dir: str | None = None,
+        log_to_csv: bool | None = None,
     ) -> Dict[str, Any]:
         """Run batch inference from a folder or manifest and continue on per-case failures."""
         return _process_batch_impl(
@@ -1591,9 +1593,9 @@ def build_mcp_server(
     def process_oai_batch(
         batch_path: str,
         task: str = "all",
-        qc_visualization: Optional[bool] = None,
-        output_dir: Optional[str] = None,
-        log_to_csv: Optional[bool] = None,
+        qc_visualization: bool | None = None,
+        output_dir: str | None = None,
+        log_to_csv: bool | None = None,
     ) -> Dict[str, Any]:
         """Backward-compatible alias for process_batch."""
         return _process_batch_impl(
@@ -1632,7 +1634,7 @@ async def run_interactive_cli_via_mcp(
         suffix=".log",
     )
     server_log_path = server_log.name
-    server_process: Optional[subprocess.Popen[str]] = None
+    server_process: subprocess.Popen[str] | None = None
     normalized_mcp_path = _normalize_mcp_path(mcp_path)
     server_url = _build_mcp_server_url(
         host=host, port=port, mcp_path=normalized_mcp_path
@@ -1721,7 +1723,7 @@ def _wait_for_background_mcp_server(
     timeout_seconds: float = 30.0,
 ) -> None:
     deadline = time.time() + timeout_seconds
-    last_error: Optional[str] = None
+    last_error: str | None = None
 
     while time.time() < deadline:
         if process.poll() is not None:
