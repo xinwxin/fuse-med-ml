@@ -1,6 +1,7 @@
+# ruff: noqa: UP045
 import argparse
-import asyncio
 import ast
+import asyncio
 import contextlib
 import csv
 import io
@@ -20,8 +21,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import matplotlib.pyplot as plt
 import nibabel as nib
 import numpy as np
-import torch
 import pandas as pd
+import torch
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -44,8 +45,12 @@ if REPO_ROOT not in sys.path:
 OAI_EXAMPLE_DIR = os.path.dirname(BASE_DIR)
 DEFAULT_INFERENCE_CONFIG_PATH = os.path.join(BASE_DIR, "inference_config.yaml")
 DEFAULT_OUTPUT_DIR = os.path.join(OAI_EXAMPLE_DIR, "outputs", "mcp_inference")
-DEFAULT_CLASSIFICATION_WEIGHTS = os.path.join(BASE_DIR, "weights", "classification_model.ckpt")
-DEFAULT_SEGMENTATION_WEIGHTS = os.path.join(BASE_DIR, "weights", "segmentation_model.ckpt")
+DEFAULT_CLASSIFICATION_WEIGHTS = os.path.join(
+    BASE_DIR, "weights", "classification_model.ckpt"
+)
+DEFAULT_SEGMENTATION_WEIGHTS = os.path.join(
+    BASE_DIR, "weights", "segmentation_model.ckpt"
+)
 LOG_FIELDNAMES = [
     "timestamp",
     "case_id",
@@ -122,7 +127,7 @@ def _load_config(config_path: str) -> Dict[str, Any]:
     if not os.path.exists(config_path):
         return config
 
-    with open(config_path, "r", encoding="utf-8") as handle:
+    with open(config_path, encoding="utf-8") as handle:
         for raw_line in handle:
             line = raw_line.split("#", 1)[0].rstrip()
             if not line or raw_line[:1].isspace():
@@ -201,7 +206,9 @@ def _extract_checkpoint_state_dict(
     )
 
 
-def _infer_head_output_dims(checkpoint: Any, cls_targets: Sequence[str]) -> Dict[str, int]:
+def _infer_head_output_dims(
+    checkpoint: Any, cls_targets: Sequence[str]
+) -> Dict[str, int]:
     named_pattern = re.compile(
         r"^heads\.head_([^\.]+)\.conv_classifier_3d\.classifier\.(\d+)\.weight$"
     )
@@ -278,7 +285,9 @@ def _infer_head_output_dims(checkpoint: Any, cls_targets: Sequence[str]) -> Dict
         if named_dims:
             available_named_targets = sorted(named_dims)
             missing_targets = [
-                target for target in cls_targets if target not in available_named_targets
+                target
+                for target in cls_targets
+                if target not in available_named_targets
             ]
             errors.append(
                 "Checkpoint contains named classification heads for "
@@ -365,7 +374,7 @@ def _load_batch_inputs(batch_path: str) -> List[str]:
     lower_path = batch_path.lower()
     if lower_path.endswith(".jsonl"):
         paths = []
-        with open(batch_path, "r", encoding="utf-8") as handle:
+        with open(batch_path, encoding="utf-8") as handle:
             for line in handle:
                 line = line.strip()
                 if not line:
@@ -383,10 +392,15 @@ def _load_batch_inputs(batch_path: str) -> List[str]:
         df = pd.read_csv(batch_path, sep=sep)
         for column in ["path", "input_path", "img_path"]:
             if column in df.columns:
-                return [_resolve_manifest_path(path) for path in df[column].dropna().astype(str)]
+                return [
+                    _resolve_manifest_path(path)
+                    for path in df[column].dropna().astype(str)
+                ]
         if len(df.columns) == 0:
             raise ValueError(f"No columns found in {batch_path}")
-        return [_resolve_manifest_path(path) for path in df.iloc[:, 0].dropna().astype(str)]
+        return [
+            _resolve_manifest_path(path) for path in df.iloc[:, 0].dropna().astype(str)
+        ]
 
     raise ValueError(
         "Batch input must be a directory, .csv, .tsv, .txt, or .jsonl manifest."
@@ -458,7 +472,9 @@ class PreprocessingTool:
             image = np.stack(slices, axis=0)
             source_type = "dicom_dir"
             affine = np.eye(4, dtype=np.float32)
-        elif os.path.isfile(resolved_path) and resolved_path.endswith((".nii", ".nii.gz")):
+        elif os.path.isfile(resolved_path) and resolved_path.endswith(
+            (".nii", ".nii.gz")
+        ):
             nifti = nib.load(resolved_path)
             image = np.asarray(nifti.get_fdata())
             source_type = "nifti_file"
@@ -531,7 +547,9 @@ class ClassificationTool:
                 )
             if not labels:
                 labels = [str(index) for index in range(inferred_output_dims[target])]
-            self.classes_by_target[target] = [_jsonable_value(label) for label in labels]
+            self.classes_by_target[target] = [
+                _jsonable_value(label) for label in labels
+            ]
 
         backbone = UNet3D(for_cls=True)
         conv_inputs = [("model.backbone_features", 512)]
@@ -544,7 +562,9 @@ class ClassificationTool:
             )
             for target in self.cls_targets
         ]
-        self.model = ModelMultiHead(conv_inputs=(("img", 1),), backbone=backbone, heads=heads)
+        self.model = ModelMultiHead(
+            conv_inputs=(("img", 1),), backbone=backbone, heads=heads
+        )
 
         state_dict = _extract_checkpoint_state_dict(
             checkpoint=checkpoint,
@@ -557,7 +577,9 @@ class ClassificationTool:
                 "Make sure the checkpoint is from the downstream classification task."
             )
 
-        missing_keys, unexpected_keys = self.model.load_state_dict(state_dict, strict=False)
+        missing_keys, unexpected_keys = self.model.load_state_dict(
+            state_dict, strict=False
+        )
         missing_backbone_or_heads = [
             key
             for key in missing_keys
@@ -569,7 +591,9 @@ class ClassificationTool:
                 f"First missing keys: {missing_backbone_or_heads[:5]}"
             )
         if unexpected_keys:
-            print("Ignoring unexpected checkpoint keys:", ", ".join(unexpected_keys[:5]))
+            print(
+                "Ignoring unexpected checkpoint keys:", ", ".join(unexpected_keys[:5])
+            )
 
         self.model.to(self.device)
         self.model.eval()
@@ -590,7 +614,9 @@ class ClassificationTool:
             probabilities = (
                 batch_dict[f"model.output.head_{target}"][0].detach().cpu().tolist()
             )
-            logits = batch_dict[f"model.logits.head_{target}"][0].detach().cpu().tolist()
+            logits = (
+                batch_dict[f"model.logits.head_{target}"][0].detach().cpu().tolist()
+            )
             predicted_index = int(np.argmax(probabilities))
             class_labels = self.classes_by_target[target]
             result["targets"][target] = {
@@ -620,10 +646,11 @@ class SegmentationTool:
         num_classes: int,
         device: str,
     ) -> None:
+        import torch.nn as nn
+
         from fuse.dl.models import ModelMultiHead
         from fuse.dl.models.backbones.backbone_unet3d import UNet3D
         from fuse.dl.models.heads.head_dense_segmentation import HeadDenseSegmentation
-        import torch.nn as nn
 
         self.weights_path = os.path.expanduser(checkpoint_path)
         self.device = _resolve_device(device)
@@ -638,14 +665,18 @@ class SegmentationTool:
                 shared_classifier_head=nn.Conv3d(64, self.num_classes, kernel_size=1),
             )
         ]
-        self.model = ModelMultiHead(conv_inputs=(("img", 1),), backbone=backbone, heads=heads)
+        self.model = ModelMultiHead(
+            conv_inputs=(("img", 1),), backbone=backbone, heads=heads
+        )
         self._load_checkpoint()
         self.model.to(self.device)
         self.model.eval()
 
     def _load_checkpoint(self) -> None:
         if not os.path.exists(self.weights_path):
-            raise FileNotFoundError(f"Segmentation checkpoint not found: {self.weights_path}")
+            raise FileNotFoundError(
+                f"Segmentation checkpoint not found: {self.weights_path}"
+            )
 
         checkpoint = torch.load(self.weights_path, map_location="cpu")
         state_dict = _extract_checkpoint_state_dict(
@@ -772,7 +803,9 @@ class InteractiveInferenceWorkflow:
         if task is not None:
             normalized_task = task.lower()
             if normalized_task not in {"segmentation", "classification", "all"}:
-                raise ValueError("task must be one of: segmentation, classification, all")
+                raise ValueError(
+                    "task must be one of: segmentation, classification, all"
+                )
             self.settings.task = normalized_task
 
         if input_format is not None:
@@ -1015,7 +1048,9 @@ class InteractiveInferenceWorkflow:
             status="running",
         )
 
-        prepared_case = self.preprocessing_tool.prepare(input_path=input_path, case_id=case_id)
+        prepared_case = self.preprocessing_tool.prepare(
+            input_path=input_path, case_id=case_id
+        )
         row["preprocessing_status"] = "success"
 
         if task in {"segmentation", "all"}:
@@ -1032,7 +1067,9 @@ class InteractiveInferenceWorkflow:
 
             if qc_visualization:
                 qc_path = os.path.join(case_dir, "segmentation_qc.png")
-                self.visualization_tool.save_segmentation_qc(prepared_case, mask, qc_path)
+                self.visualization_tool.save_segmentation_qc(
+                    prepared_case, mask, qc_path
+                )
                 row["qc_image_path"] = qc_path
 
         if task in {"classification", "all"}:
@@ -1090,9 +1127,7 @@ class InteractiveInferenceWorkflow:
     ) -> Dict[str, Any]:
         selected_task = task or self.settings.task
         if selected_task not in {"segmentation", "classification", "all"}:
-            raise ValueError(
-                "task must be one of: segmentation, classification, all"
-            )
+            raise ValueError("task must be one of: segmentation, classification, all")
 
         selected_qc = (
             self.settings.qc_visualization
@@ -1116,8 +1151,10 @@ class InteractiveInferenceWorkflow:
         )
 
         response = dict(row)
-        if row["classification_json_path"] and os.path.exists(row["classification_json_path"]):
-            with open(row["classification_json_path"], "r", encoding="utf-8") as handle:
+        if row["classification_json_path"] and os.path.exists(
+            row["classification_json_path"]
+        ):
+            with open(row["classification_json_path"], encoding="utf-8") as handle:
                 response["classification_result"] = json.load(handle)
         return response
 
@@ -1206,7 +1243,10 @@ class InteractiveInferenceWorkflow:
             json.dumps(self.settings.classification_class_labels, sort_keys=True),
             self.settings.device,
         )
-        if self._classification_tool is None or self._classification_cache_key != cache_key:
+        if (
+            self._classification_tool is None
+            or self._classification_cache_key != cache_key
+        ):
             self._classification_tool = ClassificationTool(
                 checkpoint_path=self.settings.classification_weights_path,
                 model_name=self.settings.classification_model_name,
@@ -1292,8 +1332,12 @@ class MCPInteractiveCLI:
                 if getattr(block, "type", None) == "text":
                     messages.append(block.text)
                 else:
-                    messages.append(json.dumps(block.model_dump(), indent=2, sort_keys=True))
-            raise RuntimeError("\n".join(messages) if messages else f"MCP tool failed: {name}")
+                    messages.append(
+                        json.dumps(block.model_dump(), indent=2, sort_keys=True)
+                    )
+            raise RuntimeError(
+                "\n".join(messages) if messages else f"MCP tool failed: {name}"
+            )
 
         if result.structuredContent is not None:
             return _unwrap_mcp_payload(result.structuredContent)
@@ -1326,8 +1370,12 @@ class MCPInteractiveCLI:
     async def change_settings(self, settings: Dict[str, Any]) -> None:
         print("\nUpdate settings. Press Enter to keep the current value.")
         updates = {
-            "input_mode": _prompt("Input mode (single/batch)", settings["input_mode"]).lower(),
-            "task": _prompt("Task (segmentation/classification/all)", settings["task"]).lower(),
+            "input_mode": _prompt(
+                "Input mode (single/batch)", settings["input_mode"]
+            ).lower(),
+            "task": _prompt(
+                "Task (segmentation/classification/all)", settings["task"]
+            ).lower(),
             "input_format": _prompt(
                 "Input format hint (nifti/dicom/mixed)", settings["input_format"]
             ).lower(),
@@ -1371,7 +1419,9 @@ class MCPInteractiveCLI:
                 return
 
             print(f"[OK] {case_id}: outputs saved to {result['output_directory']}")
-            print(f"Run finished. successes=1, failures=0, outputs={os.path.dirname(result['output_directory'])}")
+            print(
+                f"Run finished. successes=1, failures=0, outputs={os.path.dirname(result['output_directory'])}"
+            )
             return
 
         if input_mode != "batch":
@@ -1570,7 +1620,9 @@ async def run_interactive_cli_via_mcp(
         )
 
     if port <= 0:
-        raise ValueError("port must be a positive integer when starting the background MCP server")
+        raise ValueError(
+            "port must be a positive integer when starting the background MCP server"
+        )
 
     server_log = tempfile.NamedTemporaryFile(
         mode="w+",
@@ -1582,7 +1634,9 @@ async def run_interactive_cli_via_mcp(
     server_log_path = server_log.name
     server_process: Optional[subprocess.Popen[str]] = None
     normalized_mcp_path = _normalize_mcp_path(mcp_path)
-    server_url = _build_mcp_server_url(host=host, port=port, mcp_path=normalized_mcp_path)
+    server_url = _build_mcp_server_url(
+        host=host, port=port, mcp_path=normalized_mcp_path
+    )
     client_url = _build_mcp_server_url(
         host=_mcp_client_host(host),
         port=port,
@@ -1653,7 +1707,7 @@ def _read_log_tail(log_path: str, max_chars: int = 4000) -> str:
     if not os.path.exists(log_path):
         return ""
 
-    with open(log_path, "r", encoding="utf-8", errors="replace") as handle:
+    with open(log_path, encoding="utf-8", errors="replace") as handle:
         contents = handle.read()
     return contents[-max_chars:].strip()
 
@@ -1741,8 +1795,7 @@ def build_default_settings(
             inference_cfg.get("classification_cls_targets", ["V00COHORT", "gender"])
         ),
         classification_class_labels={
-            key: list(value)
-            for key, value in dict(classification_class_labels).items()
+            key: list(value) for key, value in dict(classification_class_labels).items()
         },
         segmentation_num_classes=int(inference_cfg.get("segmentation_num_classes", 7)),
         preprocessing_resize_to=tuple(
@@ -1751,7 +1804,8 @@ def build_default_settings(
         ),
         qc_visualization=bool(inference_cfg.get("qc_visualization", False)),
         csv_logging=bool(inference_cfg.get("csv_logging", True)),
-        output_dir=_resolve_path(inference_cfg.get("output_dir"), cfg_base) or DEFAULT_OUTPUT_DIR,
+        output_dir=_resolve_path(inference_cfg.get("output_dir"), cfg_base)
+        or DEFAULT_OUTPUT_DIR,
         device=device if device != "auto" else cfg_device,
         inference_config_path=inference_config_path,
     )
