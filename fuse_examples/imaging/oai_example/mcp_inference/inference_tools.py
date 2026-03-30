@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import signal
-import sys
 from dataclasses import asdict
 from typing import Any, Dict, List, Sequence, Tuple
 
@@ -13,9 +11,7 @@ import matplotlib.pyplot as plt
 import nibabel as nib
 import numpy as np
 import torch
-
 from inference_utils import (
-    LOG_FIELDNAMES,
     PreparedCase,
     ResultLoggerTool,
     SessionSettings,
@@ -112,11 +108,14 @@ class ClassificationTool:
         class_labels: Dict[str, Sequence[Any]] | None,
         device: str,
     ) -> None:
+        from inference_utils import (
+            _extract_checkpoint_state_dict,
+            _infer_head_output_dims,
+        )
+
         from fuse.dl.models import ModelMultiHead
         from fuse.dl.models.backbones.backbone_unet3d import UNet3D
         from fuse.dl.models.heads.heads_3D import Head3D
-
-        from inference_utils import _extract_checkpoint_state_dict, _infer_head_output_dims
 
         self.model_name = model_name
         self.weights_path = os.path.expanduser(checkpoint_path)
@@ -242,8 +241,6 @@ class SegmentationTool:
         from fuse.dl.models import ModelMultiHead
         from fuse.dl.models.backbones.backbone_unet3d import UNet3D
         from fuse.dl.models.heads.head_dense_segmentation import HeadDenseSegmentation
-
-        from inference_utils import _extract_checkpoint_state_dict
 
         self.weights_path = os.path.expanduser(checkpoint_path)
         self.device = _resolve_device(device)
@@ -387,8 +384,6 @@ class MCPInferenceEngine:
         device: str | None = None,
     ) -> Dict[str, Any]:
         """Update settings."""
-        from inference_utils import _prompt
-
         if input_mode is not None:
             normalized_input_mode = input_mode.lower()
             if normalized_input_mode not in {"single", "batch"}:
@@ -641,7 +636,9 @@ class MCPInferenceEngine:
 
         for case_index, input_path in enumerate(input_paths, start=1):
             if self._shutdown_requested:
-                print(f"\nBatch processing interrupted. Processed {success_count + failure_count}/{len(input_paths)} cases.")
+                print(
+                    f"\nBatch processing interrupted. Processed {success_count + failure_count}/{len(input_paths)} cases."
+                )
                 break
 
             case_dir_name = _case_directory_name(case_index)

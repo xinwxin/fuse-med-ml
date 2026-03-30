@@ -36,13 +36,11 @@ from inference_utils import (
     SessionSettings,
     _build_mcp_server_url,
     _input_case_id,
-    _load_batch_inputs,
     _load_config,
     _mcp_client_host,
     _normalize_mcp_path,
     _parse_bool,
     _prompt,
-    _resolve_device,
     _resolve_path,
     _unwrap_mcp_payload,
 )
@@ -233,15 +231,15 @@ def build_mcp_server(
         device=device,
     )
     workflow = MCPInferenceEngine(settings=settings)
-    
+
     # Register signal handlers for graceful shutdown
     def _handle_shutdown_signal(signum: int, frame: Any) -> None:
         print("\nShutdown signal received. Stopping batch processing...")
         workflow.request_shutdown()
-    
+
     signal.signal(signal.SIGINT, _handle_shutdown_signal)
     signal.signal(signal.SIGTERM, _handle_shutdown_signal)
-    
+
     mcp = FastMCP(
         name="medical-imaging-inference",
         instructions=(
@@ -662,4 +660,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
