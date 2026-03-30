@@ -140,6 +140,14 @@ In this example, the workflow is organized as a set of callable tools with clear
 
 The workflow uses the official MCP Python SDK and serves tool-based inference over Streamable HTTP.
 
+### Code Organization
+
+The inference functionality has been modularized into three main components for better maintainability:
+
+- `inference_utils.py`: Contains utilities, data models, configuration handling, and helper functions
+- `inference_tools.py`: Implements the core inference tools (preprocessing, segmentation, classification, visualization) and the MCP inference engine
+- `inference_cli.py`: Main entry point, MCP server setup, and interactive CLI interface
+
 ### Required Packages
 
 Python 3.10 or newer is required for this MCP workflow because `mcp[cli]` does not support Python 3.9.
