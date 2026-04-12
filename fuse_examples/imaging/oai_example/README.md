@@ -173,7 +173,7 @@ python fuse_examples/imaging/oai_example/mcp_inference/inference_cli.py
 
 By default, this starts a background MCP server and then opens the interactive terminal workflow against that same server. While the session is open, other MCP clients can connect to the same host, port, and path.
 
-The default output root is `fuse_examples/imaging/oai_example/outputs/mcp_inference/`. Each run creates a `session_<timestamp>/` folder, and cases are written to neutral subfolders such as `case_0001/`, `case_0002/`, and so on. The original input-derived `case_id` is still preserved inside the CSV/JSON metadata for traceability.
+The default output root is `fuse_examples/imaging/oai_example/outputs/mcp_inference/`. Each run creates a `session_<timestamp>/` folder, and cases are written to neutral subfolders such as `case_0001/`, `case_0002/`, and so on. The original input-derived `case_id` is still preserved inside the CSV/JSON metadata for traceability. A typical session contains per-case NIfTI/PNG/JSON outputs together with a session-level `inference_log.csv`, as summarized below.
 
 You can optionally point to a different config or device:
 
